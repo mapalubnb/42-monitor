@@ -38,5 +38,5 @@ export function outcomesText(outcomes: MarketOutcome[]): string {
 
 /** Market URL on 42.space */
 export function marketUrl(market: Market): string {
-  return `https://42.space/market/${market.slug || market.address}`;
+  return `https://www.42.space/event/${market.address}`;
 }
