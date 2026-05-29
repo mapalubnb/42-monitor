@@ -1,12 +1,15 @@
 import { Market } from '../api/client';
-import { fmtPrice, fmtVolume, fmtDate, outcomesText, marketUrl, truncate } from '../utils/format';
+import { fmtPrice, fmtVolume, fmtDate, outcomesText, marketUrl, truncate, tradableTime, tradingStatus } from '../utils/format';
 
 /** Build a card for a single new market notification */
 export function newMarketCard(market: Market): string {
   const categories = [...(market.categories || []), ...(market.subcategories || [])];
   const tagLine = categories.length > 0 ? categories.join(' | ') : 'Uncategorized';
+  const startTime = market.startDate ? fmtDate(market.startDate) : 'N/A';
   const endTime = market.endDate ? fmtDate(market.endDate) : 'N/A';
   const url = marketUrl(market);
+  const remaining = market.endDate ? tradableTime(market.endDate) : 'N/A';
+  const status = tradingStatus(market);
 
   const card = {
     config: { wide_screen_mode: true },
@@ -20,20 +23,58 @@ export function newMarketCard(market: Market): string {
         content: `**${market.question}**`,
       },
       {
-        tag: 'markdown',
-        content: [
-          `📂 **分类：** ${tagLine}`,
-          `⏰ **截止时间：** ${endTime}`,
-          `💰 **抵押品：** ${market.collateralSymbol || 'BUSDT'}`,
-          `📈 **曲线：** ${market.curve || 'N/A'}`,
-        ].join('\n'),
+        tag: 'column_set',
+        flex_mode: 'bisect',
+        background_style: 'grey',
+        columns: [
+          {
+            tag: 'column',
+            width: 'weighted',
+            weight: 1,
+            vertical_align: 'top',
+            elements: [
+              {
+                tag: 'markdown',
+                content: [
+                  `**状态：** ${status}`,
+                  `**抵押品：** ${market.collateralSymbol || 'BUSDT'}`,
+                  `**分类：** ${tagLine}`,
+                ].join('\n'),
+              },
+            ],
+          },
+          {
+            tag: 'column',
+            width: 'weighted',
+            weight: 1,
+            vertical_align: 'top',
+            elements: [
+              {
+                tag: 'markdown',
+                content: [
+                  `**开始：** ${startTime}`,
+                  `**结束：** ${endTime}`,
+                  `**可交易时间：** ${remaining}`,
+                ].join('\n'),
+              },
+            ],
+          },
+        ],
       },
       { tag: 'hr' },
       {
         tag: 'markdown',
-        content: `**Outcomes**\n${outcomesText(market.outcomes)}`,
+        content: `**选项**\n${outcomesText(market.outcomes)}`,
+      },
+      {
+        tag: 'markdown',
+        content: `**当前交易状态**\n💵 交易量: ${fmtVolume(market.volume || 0)} ${market.collateralSymbol || 'BUSDT'}  |  🏦 市值: ${fmtVolume(market.totalMarketCap || 0)}  |  👥 交易者: ${market.traders || 0}`,
       },
       { tag: 'hr' },
+      {
+        tag: 'markdown',
+        content: `**网址：** [${url}](${url})`,
+      },
       {
         tag: 'action',
         actions: [
@@ -50,7 +91,7 @@ export function newMarketCard(market: Market): string {
         elements: [
           {
             tag: 'plain_text',
-            content: `合约: ${market.address.slice(0, 8)}...${market.address.slice(-6)}  |  ${fmtDate(market.createdAt)}`,
+            content: `合约: ${market.address.slice(0, 8)}...${market.address.slice(-6)}  |  创建于 ${fmtDate(market.createdAt)}`,
           },
         ],
       },
@@ -182,8 +223,10 @@ export function marketDetailCard(market: Market): string {
         tag: 'markdown',
         content: [
           `📂 **分类：** ${categories.join(' | ') || '-'}`,
-          `📊 **状态：** ${market.status}`,
+          `📊 **状态：** ${tradingStatus(market)}`,
+          `⏰ **开始：** ${market.startDate ? fmtDate(market.startDate) : 'N/A'}`,
           `⏰ **截止：** ${market.endDate ? fmtDate(market.endDate) : 'N/A'}`,
+          `⏳ **可交易时间：** ${market.endDate ? tradableTime(market.endDate) : 'N/A'}`,
           `💵 **交易量：** ${fmtVolume(market.volume || 0)} ${market.collateralSymbol || 'BUSDT'}`,
           `🏦 **市值：** ${fmtVolume(market.totalMarketCap || 0)}`,
           `👥 **交易者：** ${market.traders || 0}`,
@@ -192,9 +235,13 @@ export function marketDetailCard(market: Market): string {
       { tag: 'hr' },
       {
         tag: 'markdown',
-        content: `**Outcomes**\n${outcomesText(market.outcomes)}`,
+        content: `**选项**\n${outcomesText(market.outcomes)}`,
       },
       { tag: 'hr' },
+      {
+        tag: 'markdown',
+        content: `**网址：** [${url}](${url})`,
+      },
       {
         tag: 'action',
         actions: [
@@ -205,6 +252,46 @@ export function marketDetailCard(market: Market): string {
             url,
           },
         ],
+      },
+    ],
+  };
+
+  return JSON.stringify(card);
+}
+
+/** Build startup notification card */
+export function startupCard(info: {
+  knownCount: number;
+  pollInterval: number;
+  version: string;
+}): string {
+  const now = fmtDate(new Date().toISOString());
+  const card = {
+    config: { wide_screen_mode: true },
+    header: {
+      template: 'turquoise',
+      title: { tag: 'plain_text', content: '🚀 42 Monitor 已启动' },
+    },
+    elements: [
+      {
+        tag: 'markdown',
+        content: [
+          `**启动时间：** ${now}`,
+          `**版本：** ${info.version}`,
+          `**已加载市场：** ${info.knownCount} 个`,
+          `**轮询间隔：** ${info.pollInterval / 1000}s`,
+          '',
+          '监控已开始运行，发现新市场将自动推送到本群。',
+        ].join('\n'),
+      },
+      { tag: 'hr' },
+      {
+        tag: 'markdown',
+        content: [
+          '**可用指令：**',
+          '`/help` - 帮助  |  `/new` - 最新市场  |  `/status` - 运行状态',
+          '`/market <地址>` - 市场详情  |  `/pause` / `/resume` - 暂停/恢复推送',
+        ].join('\n'),
       },
     ],
   };

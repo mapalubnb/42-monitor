@@ -36,6 +36,34 @@ export function outcomesText(outcomes: MarketOutcome[]): string {
     .join('\n');
 }
 
+/** Calculate tradable time remaining */
+export function tradableTime(endDate: string): string {
+  const now = Date.now();
+  const end = new Date(endDate).getTime();
+  const diff = end - now;
+  if (diff <= 0) return '已结束';
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins = Math.floor((diff % 3600000) / 60000);
+  if (days > 0) return `${days}天 ${hours}小时`;
+  if (hours > 0) return `${hours}小时 ${mins}分钟`;
+  return `${mins}分钟`;
+}
+
+/** Trading status based on market status and end date */
+export function tradingStatus(market: Market): string {
+  if (market.status === 'live') {
+    const now = Date.now();
+    const end = new Date(market.endDate).getTime();
+    if (end > now) return '🟢 交易中';
+    return '🟡 已截止，待结算';
+  }
+  if (market.status === 'ended') return '🔴 已结束';
+  if (market.status === 'resolved') return '✅ 已结算';
+  if (market.status === 'finalised') return '🏁 已完结';
+  return market.status;
+}
+
 /** Market URL on 42.space */
 export function marketUrl(market: Market): string {
   return `https://www.42.space/event/${market.address}`;

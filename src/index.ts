@@ -1,8 +1,11 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
 import { config, validateConfig } from './config';
-import { startWSClient } from './bot/feishu';
+import { startWSClient, sendCard } from './bot/feishu';
 import { handleCommand, setPollerRef } from './bot/commands';
+import { startupCard } from './bot/cards';
 import { MarketPoller } from './monitor/poller';
+
+const VERSION = '1.1.0';
 
 async function main(): Promise<void> {
   console.log('=== 42 Market Monitor ===');
@@ -17,6 +20,21 @@ async function main(): Promise<void> {
 
   // Expose poller state to command handler
   setPollerRef(poller);
+
+  // Send startup notification card
+  try {
+    await sendCard(
+      config.feishu.chatId,
+      startupCard({
+        knownCount: poller.knownAddresses.size,
+        pollInterval: config.monitor.pollIntervalMs,
+        version: VERSION,
+      })
+    );
+    console.log('[Startup] Notification card sent');
+  } catch (err: any) {
+    console.error('[Startup] Failed to send startup card:', err?.message);
+  }
 
   // Set up Feishu event dispatcher (long connection)
   const eventDispatcher = new Lark.EventDispatcher({}).register({
