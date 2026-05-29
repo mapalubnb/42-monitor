@@ -32,24 +32,54 @@ export function startWSClient(
 
 /** Start HTTP server for card action webhook */
 export function startCardWebhook(): void {
-  const cardHandler = new Lark.CardActionHandler(
-    {
-      encryptKey: config.feishu.encryptKey,
-      verificationToken: config.feishu.verificationToken,
-    },
-    async (data: any) => {
-      try {
-        const value = data?.action?.value;
-        if (!value || value.action !== 'refresh') return;
+  const port = config.monitor.cardWebhookPort;
 
+  const server = http.createServer(async (req, res) => {
+    if (req.method !== 'POST' || req.url !== '/webhook/card') {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not found' }));
+      return;
+    }
+
+    // Read request body
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(chunk as Buffer);
+    }
+    const body = Buffer.concat(chunks).toString('utf-8');
+
+    let payload: any;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'invalid json' }));
+      return;
+    }
+
+    // Handle URL verification challenge
+    if (payload.type === 'url_verification') {
+      console.log('[Card Webhook] Challenge received');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ challenge: payload.challenge }));
+      return;
+    }
+
+    // Handle card action
+    try {
+      const value = payload?.action?.value;
+      if (value && value.action === 'refresh') {
         const address = value.market_address;
-        if (!address) return;
-
         console.log(`[Card] Refresh requested for market: ${address}`);
 
-        const market = await ftClient.getMarket(address);
-        if (!market) {
-          return {
+        const market = address ? await ftClient.getMarket(address) : null;
+        if (market) {
+          const card = JSON.parse(marketDetailCard(market));
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(card));
+          return;
+        } else {
+          const errorCard = {
             header: {
               template: 'red',
               title: { tag: 'plain_text', content: '❌ 刷新失败' },
@@ -58,20 +88,20 @@ export function startCardWebhook(): void {
               { tag: 'markdown', content: '未找到该市场数据' },
             ],
           };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(errorCard));
+          return;
         }
-
-        // Return new card content to replace the current card
-        return JSON.parse(marketDetailCard(market));
-      } catch (err: any) {
-        console.error('[Card] Refresh error:', err?.message || err);
-        return undefined;
       }
+    } catch (err: any) {
+      console.error('[Card] Refresh error:', err?.message || err);
     }
-  );
 
-  const port = config.monitor.cardWebhookPort;
-  const server = http.createServer();
-  server.on('request', Lark.adaptDefault('/webhook/card', cardHandler));
+    // Default: return 200 with empty JSON
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({}));
+  });
+
   server.listen(port, () => {
     console.log(`[Card Webhook] Listening on port ${port}`);
   });
