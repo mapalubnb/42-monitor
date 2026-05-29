@@ -72,10 +72,6 @@ export function newMarketCard(market: Market): string {
       },
       { tag: 'hr' },
       {
-        tag: 'markdown',
-        content: `**网址：** [${url}](${url})`,
-      },
-      {
         tag: 'action',
         actions: [
           {
@@ -91,7 +87,7 @@ export function newMarketCard(market: Market): string {
         elements: [
           {
             tag: 'plain_text',
-            content: `合约: ${market.address.slice(0, 8)}...${market.address.slice(-6)}  |  创建于 ${fmtDate(market.createdAt)}`,
+            content: `创建于 ${fmtDate(market.createdAt)}`,
           },
         ],
       },
@@ -104,12 +100,11 @@ export function newMarketCard(market: Market): string {
 /** Build a card listing multiple new markets (batch notification) */
 export function newMarketsBatchCard(markets: Market[]): string {
   const items = markets.map((m) => {
-    const url = marketUrl(m);
     const topOutcome = m.outcomes?.[0];
     const priceLine = topOutcome
       ? `${topOutcome.name}: \`${(topOutcome.price * 100).toFixed(1)}%\``
       : '';
-    return `**[${truncate(m.question, 50)}](${url})**\n${priceLine}  |  ${(m.categories || []).join(', ') || '-'}`;
+    return `**${truncate(m.question, 50)}**\n${priceLine}  |  ${(m.categories || []).join(', ') || '-'}`;
   });
 
   const card = {
@@ -238,10 +233,6 @@ export function marketDetailCard(market: Market): string {
         content: `**选项**\n${outcomesText(market.outcomes)}`,
       },
       { tag: 'hr' },
-      {
-        tag: 'markdown',
-        content: `**网址：** [${url}](${url})`,
-      },
       {
         tag: 'action',
         actions: [
