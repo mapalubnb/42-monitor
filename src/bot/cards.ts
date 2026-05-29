@@ -14,8 +14,8 @@ export function newMarketCard(market: Market): string {
   const card = {
     config: { wide_screen_mode: true },
     header: {
-      template: 'green',
-      title: { tag: 'plain_text', content: '🟢 新市场上线' },
+      template: 'purple',
+      title: { tag: 'plain_text', content: '🆕 新市场上线' },
     },
     elements: [
       {
@@ -110,10 +110,10 @@ export function newMarketsBatchCard(markets: Market[]): string {
   const card = {
     config: { wide_screen_mode: true },
     header: {
-      template: 'green',
+      template: 'purple',
       title: {
         tag: 'plain_text',
-        content: `🟢 ${markets.length} 个新市场上线`,
+        content: `🆕 ${markets.length} 个新市场上线`,
       },
     },
     elements: [
