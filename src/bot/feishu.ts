@@ -1,8 +1,12 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
+import http from 'http';
 import { config } from '../config';
+import { FTClient } from '../api/client';
+import { marketDetailCard } from './cards';
 
 let client: Lark.Client;
 let wsClient: Lark.WSClient;
+const ftClient = new FTClient();
 
 export function getClient(): Lark.Client {
   if (!client) {
@@ -24,6 +28,53 @@ export function startWSClient(
   });
   wsClient.start({ eventDispatcher });
   return wsClient;
+}
+
+/** Start HTTP server for card action webhook */
+export function startCardWebhook(): void {
+  const cardHandler = new Lark.CardActionHandler(
+    {
+      encryptKey: config.feishu.encryptKey,
+      verificationToken: config.feishu.verificationToken,
+    },
+    async (data: any) => {
+      try {
+        const value = data?.action?.value;
+        if (!value || value.action !== 'refresh') return;
+
+        const address = value.market_address;
+        if (!address) return;
+
+        console.log(`[Card] Refresh requested for market: ${address}`);
+
+        const market = await ftClient.getMarket(address);
+        if (!market) {
+          return {
+            header: {
+              template: 'red',
+              title: { tag: 'plain_text', content: '❌ 刷新失败' },
+            },
+            elements: [
+              { tag: 'markdown', content: '未找到该市场数据' },
+            ],
+          };
+        }
+
+        // Return new card content to replace the current card
+        return JSON.parse(marketDetailCard(market));
+      } catch (err: any) {
+        console.error('[Card] Refresh error:', err?.message || err);
+        return undefined;
+      }
+    }
+  );
+
+  const port = config.monitor.cardWebhookPort;
+  const server = http.createServer();
+  server.on('request', Lark.adaptDefault('/webhook/card', cardHandler));
+  server.listen(port, () => {
+    console.log(`[Card Webhook] Listening on port ${port}`);
+  });
 }
 
 /** Send an interactive card message to the configured chat */

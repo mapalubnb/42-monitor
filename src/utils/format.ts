@@ -25,13 +25,14 @@ export function truncate(s: string, max = 60): string {
   return s.length > max ? s.slice(0, max) + '...' : s;
 }
 
-/** Build outcomes summary text for card */
+/** Build outcomes summary text for card (with market cap) */
 export function outcomesText(outcomes: MarketOutcome[]): string {
   if (!outcomes || outcomes.length === 0) return '_No outcomes_';
   return outcomes
     .map((o) => {
       const pct = (o.price * 100).toFixed(1);
-      return `**${o.name}**  \`${pct}%\``;
+      const cap = fmtVolume(o.marketCap || 0);
+      return `**${o.name}**  \`${pct}%\`  市值: ${cap}`;
     })
     .join('\n');
 }

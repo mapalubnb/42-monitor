@@ -1,11 +1,11 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
 import { config, validateConfig } from './config';
-import { startWSClient, sendCard } from './bot/feishu';
+import { startWSClient, sendCard, startCardWebhook } from './bot/feishu';
 import { handleCommand, setPollerRef } from './bot/commands';
 import { startupCard } from './bot/cards';
 import { MarketPoller } from './monitor/poller';
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 
 async function main(): Promise<void> {
   console.log('=== 42 Market Monitor ===');
@@ -57,6 +57,9 @@ async function main(): Promise<void> {
   // Start WebSocket long connection
   startWSClient(eventDispatcher);
   console.log('[Feishu] WebSocket client started');
+
+  // Start card action webhook server
+  startCardWebhook();
 
   // Graceful shutdown
   const shutdown = () => {

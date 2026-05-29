@@ -80,6 +80,12 @@ export function newMarketCard(market: Market): string {
             type: 'primary',
             url,
           },
+          {
+            tag: 'button',
+            text: { tag: 'plain_text', content: '🔄 刷新数据' },
+            type: 'default',
+            value: { action: 'refresh', market_address: market.address },
+          },
         ],
       },
       {
@@ -241,6 +247,12 @@ export function marketDetailCard(market: Market): string {
             text: { tag: 'plain_text', content: '在 42.space 查看' },
             type: 'primary',
             url,
+          },
+          {
+            tag: 'button',
+            text: { tag: 'plain_text', content: '🔄 刷新数据' },
+            type: 'default',
+            value: { action: 'refresh', market_address: market.address },
           },
         ],
       },
